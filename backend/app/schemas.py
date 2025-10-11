@@ -15,8 +15,7 @@ class MonitorOut(BaseModel):
     name: str
     email: EmailStr
     active: bool
-    class model_config:
-        from_attributes = True  # pydantic v2
+    model_config = ConfigDict(from_attributes=True)
 
 # ---------- Sessions ----------
 class SessionCreate(BaseModel):

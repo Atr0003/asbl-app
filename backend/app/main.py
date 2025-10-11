@@ -3,6 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 
 from .db import Base, engine
 
@@ -14,21 +15,25 @@ from app.routers.reports import router as reports_router
 
 load_dotenv()
 
-app = FastAPI(title="ASBL API")
+#app = FastAPI(title="ASBL API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+    # any shutdown code can go here
+app = FastAPI(title="ASBL API", lifespan=lifespan)
 
 origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[o.strip() for o in origins],
-    allow_credentials=True,
+#✅ configuration CORS
+app.add_middleware( 
+    CORSMiddleware, 
+    allow_origins=[o.strip() for o in origins], 
+    allow_credentials=True, 
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
 
 @app.get("/")
 def root():
