@@ -23,12 +23,15 @@ async def lifespan(app: FastAPI):
     # any shutdown code can go here
 app = FastAPI(title="ASBL API", lifespan=lifespan)
 
-origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+origins = [
+    "http://localhost:5173",   # Vite dev server
+    "http://127.0.0.1:5173"    # parfois utilisé aussi
+]
 
 #✅ configuration CORS
 app.add_middleware( 
     CORSMiddleware, 
-    allow_origins=[o.strip() for o in origins], 
+    allow_origins=origins, 
     allow_credentials=True, 
     allow_methods=["*"],
     allow_headers=["*"],
