@@ -8,10 +8,11 @@ from contextlib import asynccontextmanager
 from .db import Base, engine
 
 # ✅ imports explicites des routers
-from app.routers.monitors import router as monitors_router
-from app.routers.sessions import router as sessions_router
-from app.routers.attendance import router as attendance_router
-from app.routers.reports import router as reports_router
+from .routers.monitors import router as monitors_router
+from .routers.sessions import router as sessions_router
+from .routers.attendance import router as attendance_router
+from .routers.reports import router as reports_router
+from .routers import courses, students, enrollments, student_attendance, worklogs  
 
 load_dotenv()
 
@@ -47,3 +48,10 @@ app.include_router(monitors_router)
 app.include_router(sessions_router)
 app.include_router(attendance_router)
 app.include_router(reports_router)
+
+#app.include_router(monitors.router)  # existant
+app.include_router(courses.router)
+app.include_router(students.router)
+app.include_router(enrollments.router)
+app.include_router(student_attendance.router)
+app.include_router(worklogs.router)
