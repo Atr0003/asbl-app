@@ -50,3 +50,32 @@ def list_course_sessions(course_id: int, db: Session = Depends(get_db)):
     return db.query(models.CourseSession)\
         .filter(models.CourseSession.course_id == course_id)\
         .order_by(models.CourseSession.index.asc()).all()
+
+from fastapi import Body
+
+@router.post("/{course_id}/sessions/by-date", response_model=schemas.CourseSessionOut)
+def get_or_create_session_by_date(
+    course_id: int,
+    date_: date = Body(..., embed=True, alias="date"),
+    db: Session = Depends(get_db),
+):
+    course = db.get(models.Course, course_id)
+    if not course:
+        raise HTTPException(404, "Course not found")
+
+    # 1) existe déjà ?
+    existing = db.query(models.CourseSession)\
+        .where(models.CourseSession.course_id == course_id, models.CourseSession.date == date_)\
+        .first()
+    if existing:
+        return existing
+
+    # 2) sinon créer avec prochain index
+    max_idx = db.query(models.CourseSession.index)\
+        .filter(models.CourseSession.course_id == course_id)\
+        .order_by(models.CourseSession.index.desc()).first()
+    next_idx = (max_idx[0] if max_idx else 0) + 1
+
+    s = models.CourseSession(course_id=course_id, index=next_idx, date=date_)
+    db.add(s); db.commit(); db.refresh(s)
+    return s
