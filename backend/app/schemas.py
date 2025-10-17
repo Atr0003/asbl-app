@@ -34,13 +34,23 @@ class CourseSessionOut(BaseModel):
 # ----- Students / Enrollments -----
 class StudentCreate(BaseModel):
     name: str
-    email: Optional[EmailStr] = None
+    first_name: str
+    class_name: str
+    # email supprimé / optionnel : email: Optional[EmailStr] = None
 
 class StudentOut(BaseModel):
     id: int
     name: str
-    email: Optional[EmailStr]
+    first_name: str
+    class_name: str
+    # email: Optional[EmailStr] = None
     model_config = ConfigDict(from_attributes=True)
+
+class RosterItem(BaseModel):
+    student_id: int
+    student_name: str
+    student_first_name: str
+    student_class: str
 
 class EnrollmentCreate(BaseModel):
     student_id: int

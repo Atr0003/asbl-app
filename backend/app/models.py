@@ -51,14 +51,19 @@ class CourseSession(Base):
     student_attendances = relationship("StudentAttendance", back_populates="session", cascade="all, delete-orphan")
 
 # ==== ELEVES & INSCRIPTIONS ====
+
 class Student(Base):
     __tablename__ = "students"
     id = Column(Integer, primary_key=True)
-    name = Column(String(160), nullable=False)
-    email = Column(String(160), unique=True, index=True, nullable=True)
+    name = Column(String(160), nullable=False)         # nom
+    first_name = Column(String(160), nullable=False)   # prénom
+    class_name = Column(String(80), nullable=False)    # classe (ex: P5A, 3ème, etc.)
+    email = Column(String(160), unique=True, index=True, nullable=True)  # optionnel
 
     enrollments = relationship("Enrollment", back_populates="student", cascade="all, delete-orphan")
     attendances = relationship("StudentAttendance", back_populates="student", cascade="all, delete-orphan")
+
+
 
 class Enrollment(Base):
     __tablename__ = "enrollments"
@@ -95,3 +100,14 @@ class MonitorWorkLog(Base):
 
     monitor = relationship("Monitor", back_populates="worklogs")
     session = relationship("CourseSession")
+
+class Session(Base):
+    __tablename__ = "sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False)
+    activity = Column(String, nullable=False)
+    location = Column(String)
+    start_time = Column(Time)
+    end_time = Column(Time)
+
+

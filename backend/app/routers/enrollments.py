@@ -26,10 +26,30 @@ def create_enrollment(payload: schemas.EnrollmentCreate, db: Session = Depends(g
 @router.get("/course/{course_id}/roster", response_model=List[schemas.RosterItem])
 def course_roster(course_id: int, db: Session = Depends(get_db)):
     rows = (
-        db.query(models.Student.id, models.Student.name, models.Student.email)
+        db.query(models.Student.id, models.Student.name, models.Student.first_name, models.Student.class_name)
         .join(models.Enrollment, models.Enrollment.student_id == models.Student.id)
         .filter(models.Enrollment.course_id == course_id)
-        .order_by(models.Student.name)
+        .order_by(models.Student.name, models.Student.first_name)
         .all()
     )
-    return [schemas.RosterItem(student_id=r.id, student_name=r.name, student_email=r.email) for r in rows]
+    return [
+        schemas.RosterItem(
+            student_id=r.id,
+            student_name=r.name,
+            student_first_name=r.first_name,
+            student_class=r.class_name
+        )
+        for r in rows
+    ]
+
+
+@router.delete("", status_code=204)
+def delete_enrollment(student_id: int, course_id: int, db: Session = Depends(get_db)):
+    e = db.query(models.Enrollment).filter(
+        models.Enrollment.student_id == student_id,
+        models.Enrollment.course_id == course_id
+    ).first()
+    if not e:
+        raise HTTPException(404, "Enrollment not found")
+    db.delete(e); db.commit()
+    return
