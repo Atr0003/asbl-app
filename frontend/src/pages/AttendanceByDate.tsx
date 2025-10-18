@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
-import { listCourses, type Course, getOrCreateSessionByDate } from "../api/courses";
+import { listCourses, type Course } from "../api/courses";
 import { courseRoster, type RosterItem } from "../api/enrollments";
-import { listAttendanceBySession, upsertAttendance, type AttendanceStatus } from "../api/studentAttendance";
+import { listAttendanceByDay, upsertAttendanceDay, type AttendanceStatus } from "../api/studentAttendance";
 
 export default function AttendanceByDatePage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseId, setCourseId] = useState<number | "">("");
   const [dateStr, setDateStr] = useState<string>(""); // YYYY-MM-DD
-  const [sessionId, setSessionId] = useState<number | null>(null);
 
   const [roster, setRoster] = useState<RosterItem[]>([]);
   const [statusByStudent, setStatusByStudent] = useState<Record<number, AttendanceStatus | undefined>>({});
@@ -22,26 +21,20 @@ export default function AttendanceByDatePage() {
     })();
   }, []);
 
-  async function loadSessionAndData() {
+  async function loadData() {
     setMsg("");
     if (!courseId || !dateStr) { setMsg("Choisis un cours et une date"); return; }
     setLoading(true);
     try {
-      // 1) Trouver (ou créer) la séance du jour
-      const s = await getOrCreateSessionByDate(Number(courseId), dateStr);
-      setSessionId(s.id);
-
-      // 2) Charger roster + présences existantes
       const [r, att] = await Promise.all([
         courseRoster(Number(courseId)),
-        listAttendanceBySession(s.id),
+        listAttendanceByDay(Number(courseId), dateStr),
       ]);
       setRoster(r);
       const map: Record<number, AttendanceStatus> = {};
       for (const a of att) map[a.student_id] = a.status;
       setStatusByStudent(map);
-
-      setMsg(`Séance #${s.index} du ${s.date ?? dateStr} chargée ✅`);
+      setMsg(`Présences du ${dateStr} chargées ✅`);
     } catch (e:any) {
       console.error(e);
       setMsg(e?.response?.data?.detail || "Erreur de chargement");
@@ -51,11 +44,10 @@ export default function AttendanceByDatePage() {
   }
 
   async function setStatus(student_id: number, newStatus: AttendanceStatus) {
-    if (!sessionId) return;
-    // update optimiste
-    setStatusByStudent(prev => ({ ...prev, [student_id]: newStatus }));
+    if (!courseId || !dateStr) return;
+    setStatusByStudent(prev => ({ ...prev, [student_id]: newStatus })); // optimistic
     try {
-      await upsertAttendance(student_id, sessionId, newStatus);
+      await upsertAttendanceDay({ student_id, course_id: Number(courseId), date: dateStr, status: newStatus });
     } catch (e:any) {
       console.error(e);
       setMsg("Erreur lors de l’enregistrement");
@@ -76,10 +68,10 @@ export default function AttendanceByDatePage() {
           </select>
         </div>
         <div>
-          <label>Date de la séance</label>
+          <label>Date</label>
           <input type="date" value={dateStr} onChange={e=>setDateStr(e.target.value)} />
         </div>
-        <button type="button" onClick={loadSessionAndData}>Charger / Créer la séance</button>
+        <button type="button" onClick={loadData}>Charger</button>
       </div>
 
       {msg && <p style={{ color: msg.includes("Erreur") ? "red" : "green" }}>{msg}</p>}

@@ -27,28 +27,10 @@ class Course(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(160), nullable=False)
     description = Column(String(255), nullable=True)
-    monitor_id = Column(Integer, ForeignKey("monitors.id"), nullable=True)
-
+    monitor_id = Column(Integer, ForeignKey("monitors.id"), nullable=False)  # ← OBLIGATOIRE
     monitor = relationship("Monitor")
-    sessions = relationship("CourseSession", back_populates="course", cascade="all, delete-orphan")
     enrollments = relationship("Enrollment", back_populates="course", cascade="all, delete-orphan")
 
-class CourseSession(Base):
-    """
-    Remplace l'ancienne 'Session'. Rattachée à un Course + index 1..N.
-    """
-    __tablename__ = "course_sessions"
-    id = Column(Integer, primary_key=True)
-    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
-    index = Column(Integer, nullable=False)  # 1..25 par ex.
-    date = Column(Date, nullable=True)
-    start_time = Column(Time, nullable=True)
-    end_time = Column(Time, nullable=True)
-
-    __table_args__ = (UniqueConstraint("course_id", "index", name="uq_course_session_index"),)
-
-    course = relationship("Course", back_populates="sessions")
-    student_attendances = relationship("StudentAttendance", back_populates="session", cascade="all, delete-orphan")
 
 # ==== ELEVES & INSCRIPTIONS ====
 
@@ -81,13 +63,11 @@ class StudentAttendance(Base):
     __tablename__ = "student_attendances"
     id = Column(Integer, primary_key=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
-    session_id = Column(Integer, ForeignKey("course_sessions.id"), nullable=False)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
+    date = Column(Date, nullable=False)
     status = Column(Enum(AttendanceStatus), default=AttendanceStatus.present, nullable=False)
-
-    __table_args__ = (UniqueConstraint("student_id", "session_id", name="uq_student_session"),)
-
-    student = relationship("Student", back_populates="attendances")
-    session = relationship("CourseSession", back_populates="student_attendances")
+    __table_args__ = (UniqueConstraint("student_id", "course_id", "date", name="uq_student_course_date"),)
+    student = relationship("Student")
 
 # ==== JOURNAL DE TRAVAIL MONITEURS ====
 class MonitorWorkLog(Base):
@@ -96,11 +76,10 @@ class MonitorWorkLog(Base):
     monitor_id = Column(Integer, ForeignKey("monitors.id"), nullable=False)
     date = Column(Date, nullable=False)
     hours = Column(Float, default=0.0)
-    session_id = Column(Integer, ForeignKey("course_sessions.id"), nullable=True)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=True)
+    monitor = relationship("Monitor")
 
-    monitor = relationship("Monitor", back_populates="worklogs")
-    session = relationship("CourseSession")
-
+# ==== SEANCES DE COURS ====
 class Session(Base):
     __tablename__ = "sessions"
     id = Column(Integer, primary_key=True, index=True)

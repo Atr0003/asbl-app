@@ -21,3 +21,8 @@ export async function getOrCreateSessionByDate(courseId: number, date: string) {
   const { data } = await api.post(`/courses/${courseId}/sessions/by-date`, { date });
   return data as { id:number; course_id:number; index:number; date:string|null };
 }
+
+export async function listCourseSessions(courseId: number) {
+  const { data } = await api.get(`/courses/${courseId}/sessions`);
+  return data as { id:number; course_id:number; index:number; date?:string|null }[];
+}
