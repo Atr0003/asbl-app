@@ -8,4 +8,4 @@ export async function listWorklogs(monitor_id:number, month?:string): Promise<Wo
 export async function createWorklog(payload:{monitor_id:number; date:string; hours:number; session_id?:number}) {
   const { data } = await api.post("/worklogs", payload); return data as Worklog;
 }
-export async function deleteWorklog(id:number) { await api.delete(`/worklogs/${id}`); }
+export async function deleteWorklog(id:number) { await api.delete(`/worklogs1/${id}`); }

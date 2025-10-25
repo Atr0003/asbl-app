@@ -6,7 +6,6 @@ const MONITOR_ID = 1; // provisoire (avant Auth)
 
 export default function WorklogsPage() {
   const [courses, setCourses] = useState<Course[]>([]);
-  const [courseId, setCourseId] = useState<number | "">("");
   const [month, setMonth] = useState(() => {
     const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
   });

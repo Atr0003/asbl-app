@@ -1,48 +1,36 @@
-import { useEffect, useMemo, useState } from "react";
-import { listCourses, type Course, listCourseSessions } from "../api/courses";
+import { useEffect, useState } from "react";
+import { listCourses, type Course } from "../api/courses";
 import { courseRoster, type RosterItem } from "../api/enrollments";
-import { listAttendanceBySession, upsertAttendance, type AttendanceStatus } from "../api/studentAttendance";
+import { listAttendanceByDay, upsertAttendanceDay, type AttendanceStatus } from "../api/studentAttendance";
 
 export default function AttendancePage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseId, setCourseId] = useState<number | "">("");
-  const [sessions, setSessions] = useState<{ id:number; index:number; date?:string|null }[]>([]);
-  const [sessionId, setSessionId] = useState<number | "">("");
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const [roster, setRoster] = useState<RosterItem[]>([]);
   const [statusByStudent, setStatusByStudent] = useState<Record<number, AttendanceStatus | undefined>>({});
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // charge cours au mount
+  // Charger la liste des cours
   useEffect(() => {
     (async () => {
       const cs = await listCourses();
-      cs.sort((a,b)=>a.name.localeCompare(b.name));
+      cs.sort((a, b) => a.name.localeCompare(b.name));
       setCourses(cs);
     })();
   }, []);
 
-  // quand cours change → sessions + vider roster/attendances
-  useEffect(() => {
-    setSessions([]); setSessionId(""); setRoster([]); setStatusByStudent({});
-    if (!courseId) return;
-    (async () => {
-      const ss = await listCourseSessions(Number(courseId));
-      ss.sort((a,b)=>a.index - b.index);
-      setSessions(ss.map(s => ({ id:s.id, index:s.index, date:s.date ?? null })));
-    })();
-  }, [courseId]);
-
-  // quand session change → charger roster + présences
+  // Quand on choisit un cours → charger les élèves
   useEffect(() => {
     setRoster([]); setStatusByStudent({});
-    if (!sessionId || !courseId) return;
+    if (!courseId || !selectedDate) return;
     (async () => {
       setLoading(true); setMsg("");
       try {
         const [r, att] = await Promise.all([
           courseRoster(Number(courseId)),
-          listAttendanceBySession(Number(sessionId))
+          listAttendanceByDay(Number(courseId), selectedDate)
         ]);
         setRoster(r);
         const map: Record<number, AttendanceStatus> = {};
@@ -55,14 +43,18 @@ export default function AttendancePage() {
         setLoading(false);
       }
     })();
-  }, [sessionId, courseId]);
+  }, [courseId, selectedDate]);
 
   async function setStatus(student_id: number, newStatus: AttendanceStatus) {
-    if (!sessionId) return;
-    // Optimistic update
+    if (!selectedDate || !courseId) return;
     setStatusByStudent(prev => ({ ...prev, [student_id]: newStatus }));
     try {
-      await upsertAttendance(student_id, Number(sessionId), newStatus);
+      await upsertAttendanceDay({
+        course_id: Number(courseId),
+        student_id,
+        date: selectedDate,
+        status: newStatus
+      });
       setMsg("Présence enregistrée ✅");
     } catch (e:any) {
       console.error(e);
@@ -70,14 +62,11 @@ export default function AttendancePage() {
     }
   }
 
-  const sessionLabel = (s: {index:number; date?:string|null}) =>
-    `Cours ${s.index}${s.date ? " — " + s.date : ""}`;
-
   return (
     <div style={{ maxWidth: 1000, margin:"2rem auto", padding:"1rem" }}>
-      <h1>Attendance</h1>
+      <h1>Présences</h1>
 
-      {/* Sélecteurs */}
+      {/* Sélection du cours et de la date */}
       <div style={{ display:"grid", gridTemplateColumns:"2fr 2fr", gap:8, margin:"1rem 0" }}>
         <div>
           <label>Cours</label>
@@ -88,24 +77,25 @@ export default function AttendancePage() {
         </div>
 
         <div>
-          <label>Séance</label>
-          <select value={sessionId} onChange={e=>setSessionId(e.target.value ? Number(e.target.value) : "")} disabled={!courseId}>
-            <option value="">— sélectionner une séance —</option>
-            {sessions.map(s => <option key={s.id} value={s.id}>{sessionLabel(s)}</option>)}
-          </select>
+          <label>Date</label>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={e => setSelectedDate(e.target.value)}
+            disabled={!courseId}
+          />
         </div>
       </div>
 
       {msg && <p style={{ color: msg.includes("Erreur") ? "red" : "green" }}>{msg}</p>}
 
-      {/* Grille simple (1 colonne = séance sélectionnée) */}
       {loading ? <p>Chargement…</p> : (
         <table style={{ width:"100%", borderCollapse:"collapse" }}>
           <thead>
             <tr>
               <th style={{ textAlign:"left" }}>Élève</th>
               <th>Statut</th>
-              <th>Action rapide</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -117,9 +107,9 @@ export default function AttendancePage() {
                   <td style={{ textTransform:"capitalize" }}>{current ?? "—"}</td>
                   <td>
                     <div style={{ display:"flex", gap:6 }}>
-                      <button type="button" onClick={()=>setStatus(r.student_id, "present")}>Présent</button>
-                      <button type="button" onClick={()=>setStatus(r.student_id, "absent")}>Absent</button>
-                      <button type="button" onClick={()=>setStatus(r.student_id, "excused")}>Excusé</button>
+                      <button onClick={()=>setStatus(r.student_id, "present")}>Présent</button>
+                      <button onClick={()=>setStatus(r.student_id, "absent")}>Absent</button>
+                      <button onClick={()=>setStatus(r.student_id, "excused")}>Excusé</button>
                     </div>
                   </td>
                 </tr>
@@ -127,7 +117,7 @@ export default function AttendancePage() {
             })}
             {roster.length === 0 && (
               <tr><td colSpan={3} style={{ padding:"1rem" }}>
-                {courseId && sessionId ? "Aucun élève inscrit" : "Choisis un cours et une séance"}
+                {courseId && selectedDate ? "Aucun élève inscrit" : "Choisis un cours et une date"}
               </td></tr>
             )}
           </tbody>
