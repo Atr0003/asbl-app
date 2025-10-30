@@ -8,7 +8,7 @@ app = FastAPI(title="ASBL API")
 # CORS (ajoute 127.0.0.1 aussi si besoin)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "https://eduspark-asbl.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
